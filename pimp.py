@@ -1,4 +1,6 @@
 #!/usr/bin/python
+
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
 PiMP, the PI Media Player.
@@ -22,8 +24,18 @@ Have fun.
 
 Julien
 
+2015/11/11
+This version allows the creation of user databases.
+It was modified by jpmendes54@gmailcom to overcome problems with database reload
+when no path to files location is given. 
+When no path arg and no user database arg given, the path is extracted from first line
+of user database file. 
+User database is fixed length (8 chars) for simplicity, because the path to files location arg 
+may be given after the database arg.
+
+
 """
-VERSION = 0.8
+VERSION = 0.10
 
 # Allowed movies extensions
 EXTENSIONS = ["avi", "mpg", "mp4", "mkv"]
@@ -43,7 +55,11 @@ import curses
 import sys
 import os
 import subprocess
+import shutil
 
+mydb=False
+# Hardcode omxplayer args line as it seems to me that the original method is not working.
+myargs="-o local -t on --blank --font-size 20"+"  "
 
 def compute_args(args):
     "Compute command line"
@@ -52,7 +68,7 @@ def compute_args(args):
         return("")
     for a in args[1:]:
         a = a.strip()
-        if a == '':
+        if a == "":
             continue
         cmd = cmd + a + " "
     return(cmd)
@@ -76,7 +92,8 @@ def play(movie, player="omxplayer", args=[]):
     if len(options) >1:
         cmd = '{0} {1}\"{2}\"'.format(player, options, movie)
     else:
-        cmd = '{0} \"{1}\"'.format(player, movie)
+		cmd = '{0} {1}\"{2}\"'.format(player, myargs, movie)
+        #cmd = '{0} \"{1}\"'.format(player, movie)
     r = subprocess.call(cmd + ' > /dev/null', shell=True)
     return(cmd)
 
@@ -121,7 +138,6 @@ def get_movies_from_db(db):
     else:
         return(None)
 
-
 def save_movies_to_db(db, dic_movies):
     "Save movies to db."
     f = open(db, "w")
@@ -135,29 +151,46 @@ def parse_args(test=False):
     "Parse command line parameters."
     dir_movies = list()
     omx_args = list()
+    mypath=""
     player = "omxplayer"
+    usrdb = "~/pimp/.pimp"
+    mydb=False
+    nopath=False
     for a in sys.argv:
         if (a == "-h" or a == "--help") and test:
             print("Usage: pimp [options]")
             print("Options:")
             print("--player=<player executable> to specify a player")
+            print("--db=<db filename> to specify a specific database with fixed name len=8 chars")
             print("any directories containing movies")
             print("omxplayers's options for the default player")
             return(False)
         if len(a) > 9 and a[:9] == "--player=":
             player = a[9:]
+        elif len(a) > 5 and a[:5] == "--db=":
+            usrdb = "~/pimp/"+a[5:13]
+            mydb=True
+        elif len(a) > 14 and os.path.isdir(a[14:]):
+            dir_movies.append(a)
         elif os.path.isdir(a):
             dir_movies.append(a)
         else:
-            omx_args.append(a.strip())
+            omx_args.append(a.strip)
+            
     if test:
         return(True)
     else:
         if len(dir_movies) == 0:
-            dir_movies.append(os.path.expanduser("~/movies"))
+			"if no path to files, get the path from the first line of 'usrdb' file"
+			f = open(os.path.expanduser(usrdb),"r")
+			myline=f.readline().split("//")
+			f.close()
+			mypath=myline[0]+"/"
+			dir_movies.append(mypath)		
+			
         if len(omx_args) == 0:
-            omx_args = ["-o", "both", "-t", "on", "--align", "center"]
-        return(dir_movies, omx_args, player)
+            omx_args = ["-o", "both", "--blank", "-t", "on", "--font-size", "20" "--align", "center"] 
+        return(dir_movies, omx_args, player, mydb, usrdb, mypath)
 
 
 class PiMP(object):
@@ -166,14 +199,20 @@ class PiMP(object):
         "Initialization."
         self.stdscr = stdscr
         self.status = "Ready."
-        dir_movies, omx_args, player = parse_args()
+        dir_movies, omx_args, player, mydb, usrdb, mypath  = parse_args()
         self.player = player
         self.omx_args = omx_args
         self.dir_movies = dir_movies
-        self.db = os.path.expanduser("~/.pimp")
+        self.mypath = mypath
+        self.mydb=mydb
+        self.usrdb=os.path.expanduser(usrdb)
+        self.db = os.path.expanduser("~/pimp/.pimp")
+        if self.mydb==True:
+			shutil.copy(self.usrdb, self.db)
         self.init_curses()
         self.reload_database()
         self.get_key_do_action()
+      
 
     def init_curses(self):
         "Init curses settings."
@@ -228,6 +267,7 @@ class PiMP(object):
         options += K_PREV + ":Up " + K_NEXT + ":Down " + K_PPAG 
         options += ":PUp " + K_NPAG + ":PDown " + K_FIND + ":Find "
         options += K_QUIT + ":Quit"
+        options += "  [DB="+self.usrdb+"]"
         title = "PiMP V" + str(VERSION) + options
         self.draw_line_of_text(0, title, curses.color_pair(4))
         # List of movies
@@ -334,7 +374,7 @@ class PiMP(object):
         else:
             self.draw_status("Oops! You didn't type a letter looser.")
             
-    def get_key_do_action(self):
+    def get_key_do_action(self):		
         "Event loop."
         while True:
             ch = self.stdscr.getch()
@@ -349,9 +389,12 @@ class PiMP(object):
             elif ch == ord(K_PLAY):
                 self.play_selected_movie()
             elif ch == ord(K_SCAN):
-                self.reload_database(True)
+				self.reload_database(True)
             elif ch == ord(K_QUIT):
-                break
+				if self.mydb==True:
+					shutil.copy(self.db, self.usrdb)
+					break
+				break
             elif ch == ord(K_FIND):
                 self.find_and_scroll()
             self.draw_window()
@@ -362,3 +405,10 @@ if __name__ == '__main__':
     if parse_args(test=True):
         app = curses.wrapper(PiMP)
 # END MAIN PROGRAM
+
+
+
+
+
+
+
