@@ -92,7 +92,7 @@ def play(movie, player="omxplayer", args=[]):
     if len(options) >1:
         cmd = '{0} {1}\"{2}\"'.format(player, options, movie)
     else:
-		cmd = '{0} {1}\"{2}\"'.format(player, myargs, movie)
+	cmd = '{0} {1}\"{2}\"'.format(player, myargs, movie)
         #cmd = '{0} \"{1}\"'.format(player, movie)
     r = subprocess.call(cmd + ' > /dev/null', shell=True)
     return(cmd)
@@ -181,15 +181,15 @@ def parse_args(test=False):
         return(True)
     else:
         if len(dir_movies) == 0:
-			"if no path to files, get the path from the first line of 'usrdb' file"
-			f = open(os.path.expanduser(usrdb),"r")
-			myline=f.readline().split("//")
-			f.close()
-			mypath=myline[0]+"/"
-			dir_movies.append(mypath)		
+		"if no path to files, get the path from the first line of 'usrdb' file"
+		f = open(os.path.expanduser(usrdb),"r")
+		myline=f.readline().split("//")
+		f.close()
+		mypath=myline[0]+"/"
+		dir_movies.append(mypath)		
 			
         if len(omx_args) == 0:
-            omx_args = ["-o", "both", "--blank", "-t", "on", "--font-size", "20" "--align", "center"] 
+            	omx_args = ["-o", "both", "--blank", "-t", "on", "--font-size", "20" "--align", "center"] 
         return(dir_movies, omx_args, player, mydb, usrdb, mypath)
 
 
@@ -208,7 +208,7 @@ class PiMP(object):
         self.usrdb=os.path.expanduser(usrdb)
         self.db = os.path.expanduser("~/pimp/.pimp")
         if self.mydb==True:
-			shutil.copy(self.usrdb, self.db)
+		shutil.copy(self.usrdb, self.db)
         self.init_curses()
         self.reload_database()
         self.get_key_do_action()
@@ -389,12 +389,12 @@ class PiMP(object):
             elif ch == ord(K_PLAY):
                 self.play_selected_movie()
             elif ch == ord(K_SCAN):
-				self.reload_database(True)
+		self.reload_database(True)
             elif ch == ord(K_QUIT):
-				if self.mydb==True:
-					shutil.copy(self.db, self.usrdb)
-					break
-				break
+		if self.mydb==True:
+			shutil.copy(self.db, self.usrdb)
+			break
+		break
             elif ch == ord(K_FIND):
                 self.find_and_scroll()
             self.draw_window()
